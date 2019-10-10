@@ -607,7 +607,7 @@ def loop():                       #GUI
         Btn1 = tk.Button(root, width=8, text='Backward',fg=color_text,bg=color_btn,relief='ridge')
         Btn2 = tk.Button(root, width=8, text='Left',fg=color_text,bg=color_btn,relief='ridge')
         Btn3 = tk.Button(root, width=8, text='Right',fg=color_text,bg=color_btn,relief='ridge')
-        BtnMiddle = tk.Button(root, width=8, text='Stop',fg=color_text,bg=color_btn,relief='ridge') # karl yamashita 10/09/2019
+        BtnMiddle = tk.Button(root, width=8, text='Middle',fg=color_text,bg=color_btn,relief='ridge') # karl yamashita 10/09/2019
         Btn4 = tk.Button(root, width=8, text='Stop',fg=color_text,bg=color_btn,relief='ridge')
         Btn5 = tk.Button(root, width=8, text='Follow',fg=color_text,bg=color_btn,relief='ridge')
         
