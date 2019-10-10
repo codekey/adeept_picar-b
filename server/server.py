@@ -5,6 +5,7 @@
 # E-mail      : support@adeept.com
 # Author      : William & Tony DiCola (tony@tonydicola.com, the WS_2812 code)
 # Date        : 2018/10/12
+# Date Modified: 10/07/2019 by Karl Yamashita
 
 import RPi.GPIO as GPIO
 import motor
@@ -40,13 +41,13 @@ distance_stay  = 0.4
 distance_range = 2
 led_status = 0
 
-left_R = 22
-left_G = 23
-left_B = 24
+left_R = 15
+left_G = 16
+left_B = 18
 
-right_R = 10
-right_G = 9
-right_B = 25
+right_R = 19
+right_G = 21
+right_B = 22
 
 spd_ad     = 1          #Speed Adjustment
 pwm0       = 0          #Camera direction 
@@ -185,23 +186,6 @@ def scan():                  #Ultrasonic Scanning
     while cat_2>look_right_max:         #Scan,from left to right
         turn.ultra_turn(cat_2)
         cat_2 -= 3           #This value determine the speed of scanning,the greater the faster
-        new_scan_data=round(ultra.checkdist(),2)   #Get a distance of a certern direction
-        dis_dir.append(str(new_scan_data))              #Put that distance value into a list,and save it as String-Type for future transmission 
-    turn.ultra_turn(hoz_mid)   #Ultrasonic point forward
-    return dis_dir
-
-def scan_rev():                  #Ultrasonic Scanning
-    global dis_dir
-    dis_dir = []
-    turn.ultra_turn(hoz_mid)   #Ultrasonic point forward
-    turn.ultra_turn(look_right_max)   #Ultrasonic point Left,prepare to scan
-    dis_dir=['list']         #Make a mark so that the client would know it is a list
-    time.sleep(0.5)          #Wait for the Ultrasonic to be in position
-    cat_2=look_right_max                #Value of left-position
-    GPIO.setwarnings(False)  #Or it may print warnings
-    while cat_2<look_left_max:         #Scan,from left to right
-        turn.ultra_turn(cat_2)
-        cat_2 += 3           #This value determine the speed of scanning,the greater the faster
         new_scan_data=round(ultra.checkdist(),2)   #Get a distance of a certern direction
         dis_dir.append(str(new_scan_data))              #Put that distance value into a list,and save it as String-Type for future transmission 
     turn.ultra_turn(hoz_mid)   #Ultrasonic point forward
@@ -405,6 +389,7 @@ wifi_status = 0
 
 def run():                   #Main loop
     global hoz_mid,vtr_mid,ip_con,led_status,auto_status,opencv_mode,findline_mode,speech_mode,auto_mode,data,addr,footage_socket,ap_status,turn_status,wifi_status
+    
     led.setup()
     while True:              #Connection
         try:
@@ -483,9 +468,17 @@ def run():                   #Main loop
 
     while True: 
         data = ''
-        data = tcpCliSock.recv(BUFSIZ).decode()
+        try:
+            data = tcpCliSock.recv(BUFSIZ).decode()
+        except:
+            print('tcpCliSock disconnected')
+            wifi_status = 0
+            led.both_off()
+            run()
+
         if not data:
             continue
+
         elif 'exit' in data:
             os.system("sudo shutdown -h now\n")
 
@@ -495,14 +488,6 @@ def run():                   #Main loop
 
         elif 'scan' in data:
             dis_can=scan()                     #Start Scanning
-            str_list_1=dis_can                 #Divide the list to make it samller to send 
-            str_index=' '                      #Separate the values by space
-            str_send_1=str_index.join(str_list_1)+' '
-            tcpCliSock.sendall((str(str_send_1)).encode())   #Send Data
-            tcpCliSock.send('finished'.encode())        #Sending 'finished' tell the client to stop receiving the list of dis_can
-
-        elif 'scan_rev' in data:
-            dis_can=scan_rev()                     #Start Scanning
             str_list_1=dis_can                 #Divide the list to make it samller to send 
             str_index=' '                      #Separate the values by space
             str_send_1=str_index.join(str_list_1)+' '
@@ -537,17 +522,29 @@ def run():                   #Main loop
             replace_num('look_down_max:',new_ET2)
             turn.camera_turn(new_ET2)
 
-        elif 'stop' in data:                   #When server receive "stop" from client,car stops moving
-            tcpCliSock.send('9'.encode())
-            setup()
-            motor.motorStop()
-            setup()
-            if led_status == 0:
-                led.setup()
-                led.both_off()
-            colorWipe(strip, Color(0,0,0))
-            continue
-        
+        elif 'turnLeftMax' in data:                # added by Karl Yamashita 10/07/2019
+            new_turnLeft=int((str(data))[7:])
+            replace_num('turn_left_max:', new_turnLeft)
+            turn.setTurnLeftMax(new_turnLeft)
+
+        elif 'turnRightMax' in data:               # added by Karl Yamashita 10/07/2019
+            new_turnRight=int((str(data))[7:])
+            replace_num('turn_right_max:', new_turnRight)
+            turn.setTurnRightMax(new_turnRight)
+
+        elif 'ultraLeftMax' in data:               # added by Karl Yamashita 10/07/2019
+            new_ultraLeft=int((str(data))[7:])
+            replace_num('look_left_max:', new_ultraLeft)
+            global look_left_max
+            look_left_max = new_ultraLeft
+
+        elif 'ultraRightMax' in data:              # added by Karl Yamashita 10/07/2019
+            new_ultraRight=int((str(data))[7:])
+            replace_num('look_right_max:', new_ultraRight)
+            global look_right_max
+            look_right_max = new_ultraRight
+
+       
         elif 'lightsON' in data:               #Turn on the LEDs
             led.both_on()
             led_status=1
@@ -559,32 +556,37 @@ def run():                   #Main loop
             tcpCliSock.send('lightsOFF'.encode())
 
         elif 'middle' in data:                 #Go straight
-            if led_status == 0:
-                led.side_color_off(left_R,left_G)
-                led.side_color_off(right_R,right_G)
-            else:
-                led.side_on(left_B)
-                led.side_on(right_B)
+        #    if led_status == 0:
+        #        led.side_color_off(left_R,left_G)
+        #        led.side_color_off(right_R,right_G)
+        #    else:
+        #        led.side_on(left_B)
+        #        led.side_on(right_B)
             turn_status = 0
             turn.middle()
         
         elif 'Left' in data:                   #Turn left
-            if led_status == 0:
-                led.side_color_on(left_R,left_G)
-            else:
-                led.side_off(left_B)
+        #    if led_status == 0:
+        #        led.side_color_on(left_R,left_G)
+        #        led.side_off(left_B) # temporary
+        #    else:
+        #        led.side_off(left_B)
             turn.left()
             turn_status=1
             tcpCliSock.send('3'.encode())
         
         elif 'Right' in data:                  #Turn right
-            if led_status == 0:
-                led.side_color_on(right_R,right_G)
-            else:
-                led.side_off(right_B)
+        #    if led_status == 0:
+        #        led.side_color_on(right_R,right_G)
+        #        led.side_off(left_B) # temporary
+        #    else:
+        #        led.side_off(right_B)
             turn.right()
             turn_status=2
             tcpCliSock.send('4'.encode())
+
+        elif 'police' in data:
+            led.police(1)
         
         elif 'backward' in data:               #When server receive "backward" from client,car moves backward
             tcpCliSock.send('2'.encode())
@@ -636,10 +638,7 @@ def run():                   #Main loop
             tcpCliSock.send('auto_status_off'.encode())
             motor.motorStop()
             led.both_off()
-            turn.middle()
-            time.sleep(0.1)
-            motor.motorStop()
-            led.both_off()
+            colorWipe(strip, Color(0,0,0))
             turn.middle()
         
         elif 'auto' in data:                   #When server receive "auto" from client,start Auto Mode

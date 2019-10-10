@@ -19,7 +19,10 @@ right_B = 25
 on  = GPIO.LOW
 off = GPIO.HIGH
 
+bothOnFlag = 0
+
 def both_on():
+    global bothOnFlag
     GPIO.output(left_R, on)
     GPIO.output(left_G, on)
     GPIO.output(left_B, on)
@@ -27,6 +30,8 @@ def both_on():
     GPIO.output(right_R, on)
     GPIO.output(right_G, on)
     GPIO.output(right_B, on)
+
+    bothOnFlag = 1
 
 def setup():#initialization
     GPIO.setwarnings(False)
@@ -37,9 +42,10 @@ def setup():#initialization
     GPIO.setup(right_R, GPIO.OUT)
     GPIO.setup(right_G, GPIO.OUT)
     GPIO.setup(right_B, GPIO.OUT)
-    both_off()
+    both_off()    
 
 def both_off():
+    global bothOnFlag
     GPIO.output(left_R, off)
     GPIO.output(left_G, off)
     GPIO.output(left_B, off)
@@ -48,6 +54,8 @@ def both_off():
     GPIO.output(right_G, off)
     GPIO.output(right_B, off)
 
+    bothOnFlag = 0
+
 def side_on(side_X):
     GPIO.output(side_X, on)
 
@@ -55,7 +63,8 @@ def side_off(side_X):
     GPIO.output(side_X, off)
 
 def police(police_time):
-    for i in range (1,police_time):
+    currentStatus = bothOnFlag
+    for i in range (0,police_time):
         for i in range (1,3):
             side_on(left_R)
             side_on(right_B)
@@ -65,7 +74,7 @@ def police(police_time):
             side_on(right_R)
             time.sleep(0.1)
             both_off()
-        for i in range (1,5):
+        for i in range (0,5):
             side_on(left_R)
             side_on(right_B)
             time.sleep(0.3)
@@ -74,6 +83,9 @@ def police(police_time):
             side_on(right_R)
             time.sleep(0.3)
             both_off()
+
+    if currentStatus == 1:
+        both_on()    
 
 def red():
     side_on(right_R)
@@ -127,16 +139,16 @@ def turn_right(times):
 
 if __name__ == '__main__':
     setup()
-    police(4)
+    police(2)
     both_on()
     time.sleep(1)
     both_off()
     yellow()
-    time.sleep(5)
+    time.sleep(1)
     both_off()
     pink()
-    time.sleep(5)
+    time.sleep(1)
     both_off()
     cyan()
-    time.sleep(5)
+    time.sleep(1)
     both_off()
